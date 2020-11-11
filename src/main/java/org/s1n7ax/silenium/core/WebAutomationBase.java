@@ -1,7 +1,7 @@
 package org.s1n7ax.silenium.core;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.openqa.selenium.WebDriver;
 import org.s1n7ax.silenium.core.impl.DefaultDriverManagerFactory;
@@ -17,7 +17,7 @@ import org.testng.annotations.Parameters;
 public abstract class WebAutomationBase implements WebDriverManagerFactoryConfigurer, WebDriverFactoryConfigurer {
 
 	private final ThreadLocal<WebDriver> threadLocalDriver = new ThreadLocal<>();
-	private final Map<String, WebDriverManager> driverManagerMap = new HashMap<>();
+	private final Map<String, WebDriverManager> driverManagerMap = new ConcurrentHashMap<>();
 
 	protected final WebDriver getDriver() {
 		return threadLocalDriver.get();
@@ -39,8 +39,9 @@ public abstract class WebAutomationBase implements WebDriverManagerFactoryConfig
 
 	@Parameters({ "browser", "base.url", "timeout.implicit" })
 	@BeforeSuite()
-	protected final void defaultBeforeSuite(@Optional("chrome") final String browser, @Optional() final String baseURL,
-			@Optional("10000") final String implicitTimeout, final ITestContext context) {
+	protected synchronized final void defaultBeforeSuite(@Optional("chrome") final String browser,
+			@Optional() final String baseURL, @Optional("10000") final String implicitTimeout,
+			final ITestContext context) {
 
 		context.setAttribute("silenium.browser", browser);
 		context.setAttribute("silenium.base.url", baseURL);
@@ -50,8 +51,9 @@ public abstract class WebAutomationBase implements WebDriverManagerFactoryConfig
 
 	@Parameters({ "browser", "base.url", "timeout.implicit" })
 	@BeforeMethod()
-	protected final void defaultBeforeTest(@Optional("firefox") final String browser, @Optional() final String baseURL,
-			@Optional("10000") final String implicitTimeout, final ITestContext context) {
+	protected synchronized final void defaultBeforeTest(@Optional("firefox") final String browser,
+			@Optional() final String baseURL, @Optional("10000") final String implicitTimeout,
+			final ITestContext context) {
 
 		context.setAttribute("silenium.browser", browser);
 		context.setAttribute("silenium.base.url", baseURL);
@@ -76,7 +78,7 @@ public abstract class WebAutomationBase implements WebDriverManagerFactoryConfig
 		});
 	}
 
-	private final WebDriver getWebDriver(final String browser) {
+	private synchronized final WebDriver getWebDriver(final String browser) {
 
 		final var driverManager = getWebDriverManagerFactory().getManager(browser);
 
