@@ -1,9 +1,12 @@
 package org.s1n7ax.silenium.core;
 
+import java.lang.reflect.Method;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 import org.openqa.selenium.WebDriver;
+import org.s1n7ax.silenium.core.annotations.TestMeta;
 import org.s1n7ax.silenium.core.impl.DefaultDriverManagerFactory;
 import org.s1n7ax.silenium.core.impl.DefaultWebDriverFactory;
 import org.testng.ITestContext;
@@ -49,20 +52,65 @@ public abstract class WebAutomationBase implements WebDriverManagerFactoryConfig
 
 	}
 
-	@Parameters({ "browser", "base.url", "timeout.implicit" })
+	@Parameters({ "browser", "base.url", "timeout.implicit", "silenium.timeout.pageload", "silenium.timeout.script" })
 	@BeforeMethod()
-	protected synchronized final void defaultBeforeTest(@Optional("firefox") final String browser,
-			@Optional() final String baseURL, @Optional("10000") final String implicitTimeout,
-			final ITestContext context) {
+	protected synchronized final void defaultBeforeTest1(@Optional final String browser, @Optional final String baseURL,
+			@Optional("0") final String implicitTimeout, @Optional("0") final String pageloadTimeout,
+			@Optional("0") final String scriptTimeout, final Method method, final ITestContext context) {
 
 		context.setAttribute("silenium.browser", browser);
 		context.setAttribute("silenium.base.url", baseURL);
-		context.setAttribute("silenium.timeout.implicit", Long.parseLong(implicitTimeout));
 
-		setDriver(getWebDriver(browser));
+		var pageloadTimeoutLocal = Long.parseLong(pageloadTimeout);
+		var implicitTimeoutLocal = Long.parseLong(implicitTimeout);
+		var scriptTimeoutLocal = Long.parseLong(scriptTimeout);
+
+		context.setAttribute("silenium.timeout.pageload", pageloadTimeoutLocal);
+		context.setAttribute("silenium.timeout.implicit", implicitTimeoutLocal);
+		context.setAttribute("silenium.timeout.script", scriptTimeoutLocal);
+
+		var testMeta = method.getDeclaringClass().getAnnotation(TestMeta.class);
+
+		if (browser == null)
+			context.setAttribute("silenium.browser", testMeta.browser());
+
+		if (baseURL == null)
+			context.setAttribute("silenium.base.url", testMeta.baseURL());
+
+		if (implicitTimeoutLocal < 1)
+			context.setAttribute("silenium.timeout.implicit", testMeta.implicitTimeout());
+
+		if (pageloadTimeoutLocal < 1)
+			context.setAttribute("silenium.timeout.pageload", testMeta.pageloadTimeout());
+
+		if (scriptTimeoutLocal < 1)
+			context.setAttribute("silenium.timeout.script", testMeta.scriptTimeout());
+	}
+
+	@BeforeMethod()
+	protected synchronized final void defaultBeforeTest2(final ITestContext context) {
+
+		final var browser = (String) context.getAttribute("silenium.browser");
+		final var baseURL = (String) context.getAttribute("silenium.base.url");
+		final var implicitTimeout = (long) context.getAttribute("silenium.timeout.implicit");
+		final var pageloadTimeout = (long) context.getAttribute("silenium.timeout.pageload");
+		final var scriptTimeout = (long) context.getAttribute("silenium.timeout.script");
+
+		final var driver = getWebDriver(browser);
 
 		if (baseURL != null)
-			getDriver().get(baseURL);
+			driver.get(baseURL);
+
+		if (implicitTimeout > 0)
+			driver.manage().timeouts().implicitlyWait(implicitTimeout, TimeUnit.MILLISECONDS);
+
+		if (pageloadTimeout > 0)
+			driver.manage().timeouts().implicitlyWait(implicitTimeout, TimeUnit.MILLISECONDS);
+
+		if (scriptTimeout > 0)
+			driver.manage().timeouts().implicitlyWait(scriptTimeout, TimeUnit.MILLISECONDS);
+
+		setDriver(driver);
 
 	}
 
